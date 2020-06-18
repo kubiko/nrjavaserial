@@ -5445,7 +5445,9 @@ int fhs_lock( const char *filename, int pid )
 #endif /* __unixware__ */
 		p--;
 	}
-	sprintf( file, "%s/LCK..%s", LOCKDIR, p );
+
+	sprintf( file, "%s/snap.%s.LCK.%s", LOCKDIR, getenv("SNAP_INSTANCE_NAME"), p);
+
 	if ( check_lock_status( filename ) )
 	{
 		report_warning( "fhs_lock() lockstatus fail\n" );
@@ -5562,8 +5564,9 @@ int uucp_lock( const char *filename, int pid )
 		report( message );
 		return 1;
 	}
-	sprintf( lockfilename, "%s/LK.%03d.%03d.%03d",
+	sprintf( lockfilename, "%s/snap.%s.LK.%03d.%03d.%03d",
 		LOCKDIR,
+		getenv("SNAP_INSTANCE_NAME"),
 		(int) major( buf.st_dev ),
 	 	(int) major( buf.st_rdev ),
 		(int) minor( buf.st_rdev )
@@ -5676,7 +5679,7 @@ void fhs_unlock( const char *filename, int openpid )
 	p = ( char * ) filename + i;
 	/*  FIXME  need to handle subdirectories /dev/cua/... */
 	while( *( p - 1 ) != '/' && i-- != 1 ) p--;
-	sprintf( file, "%s/LCK..%s", LOCKDIR, p );
+	sprintf( file, "%s/snap.%s.LCK..%s", LOCKDIR, getenv("SNAP_INSTANCE_NAME"), p );
 
 	if( !check_lock_pid( file, openpid ) )
 	{
@@ -5716,7 +5719,8 @@ void uucp_unlock( const char *filename, int openpid )
 		report( "uucp_unlock() no such device\n" );
 		return;
 	}
-	sprintf( file, LOCKDIR"/LK.%03d.%03d.%03d",
+	sprintf( file, LOCKDIR"/snap.%s.LK.%03d.%03d.%03d",
+		getenv("SNAP_INSTANCE_NAME"),
 		(int) major( buf.st_dev ),
 	 	(int) major( buf.st_rdev ),
 		(int) minor( buf.st_rdev )
@@ -5968,6 +5972,7 @@ int is_device_locked( const char *port_filename )
 	char *p, file[1024], pid_buffer[1024], message[1024];
 	int i = 0, j, k, fd , pid;
 	struct stat buf, buf2, lockbuf;
+	char *snap_instance = getenv("SNAP_INSTANCE_NAME");
 
 	j = strlen( port_filename );
 	p = ( char * ) port_filename+j;
@@ -6006,8 +6011,8 @@ int is_device_locked( const char *port_filename )
 			while ( lockprefixes[k] )
 			{
 				/* FHS style */
-				sprintf( file, "%s/%s%s", lockdirs[i],
-					lockprefixes[k], p );
+				sprintf( file, "%s/snap.%s.%s%s", lockdirs[i],
+					snap_instance, lockprefixes[k], p );
 				if( stat( file, &buf ) == 0 )
 				{
 					sprintf( message, UNEXPECTED_LOCK_FILE,
@@ -6018,8 +6023,9 @@ int is_device_locked( const char *port_filename )
 
 				/* UUCP style */
 				stat(port_filename , &buf );
-				sprintf( file, "%s/%s%03d.%03d.%03d",
+				sprintf( file, "%s/snap.%.%s%03d.%03d.%03d",
 					lockdirs[i],
+					snap_instance,
 					lockprefixes[k],
 					(int) major( buf.st_dev ),
 					(int) major( buf.st_rdev ),
@@ -6055,7 +6061,7 @@ int is_device_locked( const char *port_filename )
 #endif /* __unixware__ */
 		p--;
 	}
-	sprintf( file, "%s/%s%s", LOCKDIR, LOCKFILEPREFIX, p );
+	sprintf( file, "%s/snap.%s.%s%s", LOCKDIR, snap_instance, LOCKFILEPREFIX, p );
 #else
 	/*  UUCP standard locks */
 	if ( stat( port_filename, &buf ) != 0 )
@@ -6063,8 +6069,9 @@ int is_device_locked( const char *port_filename )
 		report( "RXTX is_device_locked() could not find device.\n" );
 			return 1;
 	}
-	sprintf( file, "%s/LK.%03d.%03d.%03d",
+	sprintf( file, "%s/snap.%s.LK.%03d.%03d.%03d",
 		LOCKDIR,
+		snap_instance,
 		(int) major( buf.st_dev ),
  		(int) major( buf.st_rdev ),
 		(int) minor( buf.st_rdev )
@@ -6085,7 +6092,7 @@ int is_device_locked( const char *port_filename )
 			report_warning( message );
 			return 1;
 		}
-		if ( ( read( fd, pid_buffer, 11 ) ) < 0 ) 
+		if ( ( read( fd, pid_buffer, 11 ) ) < 0 )
 		{
 			sprintf( message,
 					"RXTX is_device_locked() Error: reading lock file: %s: %s\n",
